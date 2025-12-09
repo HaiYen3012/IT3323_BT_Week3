@@ -1,0 +1,42 @@
+PROGRAM ASSIGN1;
+CONST MAX = 100;
+VAR N : INTEGER;
+    U : ARRAY(. 100 .) OF ARRAY(. 100 .) OF INTEGER;
+    I : INTEGER;
+    J : INTEGER;
+
+PROCEDURE INPUT;
+BEGIN
+  CALL WRITEC('N');
+  CALL WRITEC('=');
+  N := READI;
+  
+  FOR I := 1 TO N DO
+    FOR J := 1 TO N DO
+      BEGIN
+        U(.I.)(.J.) := READI;
+      END
+END;
+
+PROCEDURE CHECKUPPER;
+VAR ISUPPER : INTEGER;
+BEGIN
+  ISUPPER := 1;
+  
+  FOR I := 1 TO N DO
+    FOR J := 1 TO N DO
+      IF I > J THEN
+        IF U(.I.)(.J.) != 0 THEN
+          ISUPPER := 0;
+  
+  IF ISUPPER = 1 THEN
+    CALL WRITEI(1)
+  ELSE
+    CALL WRITEI(0);
+  CALL WRITELN
+END;
+
+BEGIN
+  CALL INPUT;
+  CALL CHECKUPPER
+END.

@@ -1,0 +1,10 @@
+PROGRAM EXAMPLE5; (* Example 5 *)
+CONST C = 1;
+TYPE T = CHAR;
+FUNCTION F(I : INTEGER):CHAR;
+CONST B = C;
+TYPE A = ARRAY(.5.) OF T;
+BEGIN
+END;
+BEGIN
+END. (* Example 5 *)

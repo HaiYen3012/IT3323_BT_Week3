@@ -1,0 +1,6 @@
+PROGRAM ErrorTest;
+VAR X : INTEGER;
+    X : INTEGER;  (* Duplicate identifier - should error *)
+BEGIN
+  Y := 10;  (* Undeclared identifier - should error *)
+END.
