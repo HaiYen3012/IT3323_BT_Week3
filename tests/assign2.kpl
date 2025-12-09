@@ -1,24 +1,18 @@
-PROGRAM ASSIGN2;
-VAR A : INTEGER;
-    B : INTEGER;
-    SUM : INTEGER;
+PROGRAM TestAssign2
+VAR a : INTEGER;
+VAR b : INTEGER;
+VAR sum : INTEGER;
 
-PROCEDURE INPUTANDSUM;
+FUNCTION Add(x : INTEGER; y : INTEGER) : INTEGER;
+VAR temp : INTEGER;
 BEGIN
-  CALL WRITEC('A');
-  CALL WRITEC('=');
-  A := READI;
-  
-  CALL WRITEC('B');
-  CALL WRITEC('=');
-  B := READI;
-  
-  SUM := A + B;
-  
-  CALL WRITEI(SUM);
-  CALL WRITELN
+  temp := x + y;
+  Add := temp
 END;
 
 BEGIN
-  CALL INPUTANDSUM
+  WRITEI(a);
+  WRITEI(b);
+  sum := Add(a, b);
+  WRITEI(sum)
 END.
