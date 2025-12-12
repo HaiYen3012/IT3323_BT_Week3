@@ -61,7 +61,6 @@ void compileBlock(void) {
     do {
       eat(TK_IDENT);
       
-      checkFreshIdent(currentToken->string);
       constantObject = createConstantObject(currentToken->string);
       
       eat(SB_EQ);
@@ -89,7 +88,6 @@ void compileBlock2(void) {
     do {
       eat(TK_IDENT);
       
-      checkFreshIdent(currentToken->string);
       typeObject = createTypeObject(currentToken->string);
       
       eat(SB_EQ);
@@ -117,7 +115,6 @@ void compileBlock3(void) {
     do {
       eat(TK_IDENT);
       
-      checkFreshIdent(currentToken->string);
       variableObject = createVariableObject(currentToken->string);
       
       eat(SB_COLON);
@@ -161,7 +158,6 @@ void compileFuncDecl(void) {
   eat(KW_FUNCTION);
   eat(TK_IDENT);
 
-  checkFreshIdent(currentToken->string);
   functionObject = createFunctionObject(currentToken->string);
   
   declareObject(functionObject);
@@ -187,7 +183,6 @@ void compileProcDecl(void) {
   eat(KW_PROCEDURE);
   eat(TK_IDENT);
 
-  checkFreshIdent(currentToken->string);
   procedureObject = createProcedureObject(currentToken->string);
   
   declareObject(procedureObject);
@@ -215,8 +210,11 @@ ConstantValue* compileUnsignedConstant(void) {
   case TK_IDENT:
     eat(TK_IDENT);
     
-    object = checkDeclaredConstant(currentToken->string);
-    value = duplicateConstantValue(object->constAttrs->value);
+    object = lookupObject(currentToken->string);
+    if (object != NULL && object->kind == OBJ_CONSTANT)
+      value = duplicateConstantValue(object->constAttrs->value);
+    else
+      value = makeIntConstant(0);
     break;
   case TK_CHAR:
     eat(TK_CHAR);
@@ -271,8 +269,11 @@ ConstantValue* compileConstant2(void) {
   case TK_IDENT:
     eat(TK_IDENT);
     
-    object = checkDeclaredConstant(currentToken->string);
-    value = duplicateConstantValue(object->constAttrs->value);
+    object = lookupObject(currentToken->string);
+    if (object != NULL && object->kind == OBJ_CONSTANT)
+      value = duplicateConstantValue(object->constAttrs->value);
+    else
+      value = makeIntConstant(0);
     break;
   default:
     error(ERR_INVALID_CONSTANT, lookAhead->lineNo, lookAhead->colNo);
@@ -312,8 +313,11 @@ Type* compileType(void) {
   case TK_IDENT:
     eat(TK_IDENT);
     
-    object = checkDeclaredType(currentToken->string);
-    resultType = duplicateType(object->typeAttrs->actualType);
+    object = lookupObject(currentToken->string);
+    if (object != NULL && object->kind == OBJ_TYPE)
+      resultType = duplicateType(object->typeAttrs->actualType);
+    else
+      resultType = makeIntType();
     break;
   default:
     error(ERR_INVALID_TYPE, lookAhead->lineNo, lookAhead->colNo);
@@ -365,7 +369,6 @@ void compileParam(void) {
     kind = PARAM_VALUE;
     eat(TK_IDENT);
     
-    checkFreshIdent(currentToken->string);
     parameterObject = createParameterObject(currentToken->string, kind, symtab->currentScope->owner);
     
     eat(SB_COLON);
@@ -379,7 +382,6 @@ void compileParam(void) {
     eat(KW_VAR);
     eat(TK_IDENT);
     
-    checkFreshIdent(currentToken->string);
     parameterObject = createParameterObject(currentToken->string, kind, symtab->currentScope->owner);
     
     eat(SB_COLON);
@@ -435,14 +437,7 @@ void compileStatement(void) {
 }
 
 void compileLValue(void) {
-  Object* var;
-  
   eat(TK_IDENT);
-  // Check if it's a declared variable or function (for function return value assignment)
-  var = checkDeclaredIdent(currentToken->string);
-  if (var->kind != OBJ_VARIABLE && var->kind != OBJ_FUNCTION && var->kind != OBJ_PARAMETER)
-    error(ERR_INVALID_LVALUE, currentToken->lineNo, currentToken->colNo);
-  
   compileIndexes();
 }
 
@@ -455,10 +450,6 @@ void compileAssignSt(void) {
 void compileCallSt(void) {
   eat(KW_CALL);
   eat(TK_IDENT);
-  
-  // Check if it's a declared procedure
-  checkDeclaredProcedure(currentToken->string);
-  
   compileArguments();
 }
 
@@ -492,10 +483,6 @@ void compileWhileSt(void) {
 void compileForSt(void) {
   eat(KW_FOR);
   eat(TK_IDENT);
-  
-  // Check if loop variable is declared
-  checkDeclaredVariable(currentToken->string);
-  
   eat(SB_ASSIGN);
   compileExpression();
   eat(KW_TO);
@@ -686,23 +673,12 @@ void compileFactor(void) {
     
     switch (lookAhead->tokenType) {
     case SB_LPAR:
-      // Must be a function - call specific check
-      obj = checkDeclaredFunction(currentToken->string);
       compileArguments();
       break;
     case SB_LSEL:
-      // Must be a variable (array) - can be variable or parameter
-      obj = checkDeclaredIdent(currentToken->string);
-      if (obj->kind != OBJ_VARIABLE && obj->kind != OBJ_PARAMETER)
-        error(ERR_INVALID_VARIABLE, currentToken->lineNo, currentToken->colNo);
       compileIndexes();
       break;
     default:
-      // Can be variable, parameter, constant, or function (for return value)
-      obj = checkDeclaredIdent(currentToken->string);
-      if (obj->kind != OBJ_VARIABLE && obj->kind != OBJ_PARAMETER && 
-          obj->kind != OBJ_CONSTANT && obj->kind != OBJ_FUNCTION)
-        error(ERR_INVALID_FACTOR, currentToken->lineNo, currentToken->colNo);
       break;
     }
     break;
@@ -741,63 +717,5 @@ int compile(char *fileName) {
 
 }
 
-/******************** Semantic checking functions ***********************/
 
-void checkFreshIdent(char *name) {
-  Object* obj = findObject(symtab->currentScope->objList, name);
-  if (obj != NULL)
-    error(ERR_DUPLICATE_IDENT, currentToken->lineNo, currentToken->colNo);
-}
-
-Object* checkDeclaredIdent(char *name) {
-  Object* obj = lookupObject(name);
-  if (obj == NULL)
-    error(ERR_UNDECLARED_IDENT, currentToken->lineNo, currentToken->colNo);
-  return obj;
-}
-
-Object* checkDeclaredConstant(char *name) {
-  Object* obj = lookupObject(name);
-  if (obj == NULL)
-    error(ERR_UNDECLARED_IDENT, currentToken->lineNo, currentToken->colNo);
-  if (obj->kind != OBJ_CONSTANT)
-    error(ERR_INVALID_CONSTANT, currentToken->lineNo, currentToken->colNo);
-  return obj;
-}
-
-Object* checkDeclaredType(char *name) {
-  Object* obj = lookupObject(name);
-  if (obj == NULL)
-    error(ERR_UNDECLARED_IDENT, currentToken->lineNo, currentToken->colNo);
-  if (obj->kind != OBJ_TYPE)
-    error(ERR_INVALID_TYPE, currentToken->lineNo, currentToken->colNo);
-  return obj;
-}
-
-Object* checkDeclaredVariable(char *name) {
-  Object* obj = lookupObject(name);
-  if (obj == NULL)
-    error(ERR_UNDECLARED_IDENT, currentToken->lineNo, currentToken->colNo);
-  if (obj->kind != OBJ_VARIABLE)
-    error(ERR_INVALID_VARIABLE, currentToken->lineNo, currentToken->colNo);
-  return obj;
-}
-
-Object* checkDeclaredFunction(char *name) {
-  Object* obj = lookupObject(name);
-  if (obj == NULL)
-    error(ERR_UNDECLARED_IDENT, currentToken->lineNo, currentToken->colNo);
-  if (obj->kind != OBJ_FUNCTION)
-    error(ERR_INVALID_FUNCTION, currentToken->lineNo, currentToken->colNo);
-  return obj;
-}
-
-Object* checkDeclaredProcedure(char *name) {
-  Object* obj = lookupObject(name);
-  if (obj == NULL)
-    error(ERR_UNDECLARED_IDENT, currentToken->lineNo, currentToken->colNo);
-  if (obj->kind != OBJ_PROCEDURE)
-    error(ERR_INVALID_PROCEDURE, currentToken->lineNo, currentToken->colNo);
-  return obj;
-}
 
